@@ -1,17 +1,3 @@
-LIBELLE_AGGREGATS = {
-    1: 'Achats et charges externes',
-    2: 'Impôts et taxes',
-    3: 'Charges de personnel',
-    4: 'Autres charges de gestion courante',
-    5: 'Charges financieres',
-    6: 'Charges exceptionnelles',
-    7: 'Depenses directes d investissement',
-    8: 'Subventions d equipement versees',
-    9: 'Prises de participation',
-    10: 'Prets accordes',
-    11: 'Remboursement d emprunts et de dettes assimilees',
-}
-
 DEFINITION_AGGREGATS = {
     1: {'a_prendre': ['60', '61', '62'], 'a_exclure': ['621']},
     2: {'a_prendre': ['63'], 'a_exclure': ['631', '633']},
@@ -26,7 +12,23 @@ DEFINITION_AGGREGATS = {
     11: {'a_prendre': ['16'], 'a_exclure': ['1688', '166']},
 }
 
-LIBELLE_FONCTIONS = {
+
+LABEL_AGGREGATS = {
+    1: 'Achats et charges externes',
+    2: 'Impôts et taxes',
+    3: 'Charges de personnel',
+    4: 'Autres charges de gestion courante',
+    5: 'Charges financieres',
+    6: 'Charges exceptionnelles',
+    7: 'Depenses directes d\'investissement',
+    8: 'Subventions d equipement versees',
+    9: 'Prises de participation',
+    10: 'Prets accordes',
+    11: 'Remboursement d emprunts et de dettes assimilees',
+}
+
+
+LABEL_FONCTIONS = {
     0: 'Services généraux et opérations non ventilables',
     1: 'Sécurité et salubrité publiques',
     2: 'Enseignement – formation',
