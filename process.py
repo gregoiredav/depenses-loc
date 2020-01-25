@@ -2,7 +2,7 @@ import sys
 
 import pandas as pd
 
-from lib import string_to_float, get_code_aggregat, label_aggregat, label_fonction, pad_ndept
+from lib import string_to_float, get_code_aggregat, label_aggregat, label_fonction, pad_ndept, clean_insee_type
 import models
 
 
@@ -12,14 +12,15 @@ DATADIR = 'data_output/'
 
 
 # create dataframe from csv
-data = pd.read_csv(DATAFILE, sep=';')
+data = pd.read_csv(DATAFILE, sep=';', encoding="ISO-8859-1", dtype=str)
 
 # convertir colonnes de dépense en float
 for col in ['SD', 'SC', 'OBNETDEB', 'OBNETCRE', 'OOBDEB', 'OOBCRE']:
-    data[col] = data[col].apply(string_to_float)
+    data[col] = data[col].apply(str).apply(string_to_float)
 
-# convertir compte en str
+# autre traitements
 data['COMPTE'] = data['COMPTE'].apply(str)
+data['INSEE'] = data['INSEE'].fillna(0).apply(str).apply(clean_insee_type)
 
 # étiquetter les aggregats
 data['code_aggregat'] = data['COMPTE'].apply(get_code_aggregat)
@@ -45,18 +46,18 @@ data['departement'] = data['NDEPT'].apply(pad_ndept)
 data['INSEE'].fillna(0, inplace=True)
 data['code_commune'] = data['departement'] + data['INSEE'].apply(lambda x: str(int(x)))
 
-# pivoting
-index_cols = ['siren', 'IDENT', 'fonction', 'code_commune']
-pivot_table = (
-    pd
-    .pivot_table(data, values='depense', index=index_cols, columns='aggregat', aggfunc='sum', fill_value=0)
+# aggregation par fonction et aggrégat de compte
+grouped_data = (
+    data
+    .groupby(['siren', 'NDEPT', 'CTYPE', 'NOMEN', 'CATEG', 'LBUDG', 'IDENT', 'fonction', 'code_commune', 'aggregat'])
+    .agg({'depense': 'sum'})
     .reset_index()
 )
 
-# import and join pop data
+# import et join pop data
 pop_data = models.population_data()
-pivot_pop = pivot_table.merge(pop_data, how='left', on='code_commune')
+grouped_data_w_pop = grouped_data.merge(pop_data, how='left', on='code_commune')
 
-# write data
-pivot_pop.to_csv(DATADIR + EXPORT_FILE_NAME)
+# écriture data
+grouped_data_w_pop.to_csv(DATADIR + EXPORT_FILE_NAME, encoding="utf-8")
 print("csv exporté in {} sous le nom {}".format(DATADIR, EXPORT_FILE_NAME))

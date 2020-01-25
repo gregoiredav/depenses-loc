@@ -2,7 +2,13 @@ from nomenclatures import DEFINITION_AGGREGATS, LABEL_AGGREGATS, LABEL_FONCTIONS
 
 
 def string_to_float(ligne):
-    return float(ligne.replace(',','.'))
+    return float(ligne.replace(',', '.'))
+
+
+def clean_insee_type(ligne):
+    if ligne.startswith('`'):
+        return ligne[1:]
+    return ligne
 
 
 def get_code_aggregat(ligne):
