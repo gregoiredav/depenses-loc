@@ -9,17 +9,25 @@ Le premier argument est le path du CSV des bilans comptable, le deuxieme argumen
 Example:
 `python3 process.py data_input/BalanceSPL_Fonction_2018_Dec2019.csv bilan_2018.csv` 
 
+
 Contributeurs dans le cadre du Hackathon #Datafin 2020:
-Jeremy Chrétien
-Nicolas Paulhiac
-Grégoire David
-Roxane de Rochefort
-Gilles Boschi
+
 Adrien Fleurent
+
 Blandine de Rochefort
-Hugo Le Floch
-Rémi Le Tenier
+
+Gilles Boschi
+
+Grégoire David
+
+Jeremy Chrétien
+
+Nicolas Paulhiac
+
+Roxane de Rochefort
+
 Stephane Trainel
+
 
 Pour toute question:
 grgoire.david@gmail.com
