@@ -2,62 +2,92 @@ import sys
 
 import pandas as pd
 
-from lib import string_to_float, get_code_aggregat, label_aggregat, label_fonction, pad_ndept, clean_insee_type
+from lib import Cleaner, Compta, flag_vote_par_nature
 import models
 
 
 DATAFILE = sys.argv[1]
 EXPORT_FILE_NAME = sys.argv[2]
-DATADIR = 'data_output/'
+OUTPUT_DATADIR = 'data_output/'
+
+CATEGORIES = ['Commune']
 
 
 # create dataframe from csv
-data = pd.read_csv(DATAFILE, sep=';', encoding="ISO-8859-1", dtype=str)
+df = pd.read_csv(
+    filepath_or_buffer=DATAFILE,
+    sep=';',
+    encoding="ISO-8859-1",
+    dtype=str,
+    na_filter=False,
+)
 
-# convertir colonnes de dépense en float
-for col in ['SD', 'SC', 'OBNETDEB', 'OBNETCRE', 'OOBDEB', 'OOBCRE']:
-    data[col] = data[col].apply(str).apply(string_to_float)
+# Data cleaning
+cleaner = Cleaner({
+    'EXER': int,
+    'INSEE': Cleaner.insee,
+    'FONCTION': Cleaner.fonction,
+    'NDEPT': Cleaner.ndept,
+    'OOBDEB': Cleaner.chiffre,
+    'OOBCRE': Cleaner.chiffre,
+    'SD': Cleaner.chiffre,
+    'SC': Cleaner.chiffre,
+    'OBNETDEB': Cleaner.chiffre,
+    'OBNETCRE': Cleaner.chiffre,
+})
+df = cleaner.clean(df)
 
-# autre traitements
-data['COMPTE'] = data['COMPTE'].apply(str)
-data['INSEE'] = data['INSEE'].fillna(0).apply(str).apply(clean_insee_type)
+# Filter par catégorie
+df = df[df['CATEG'].isin(CATEGORIES)]
 
-# étiquetter les aggregats
-data['code_aggregat'] = data['COMPTE'].apply(get_code_aggregat)
-data = data.dropna(subset=['code_aggregat'])
-data['aggregat'] = data['code_aggregat'].apply(label_aggregat)
+# Label aggregat de compte
+df.loc[:, 'code_aggregat_compte'] = df['COMPTE'].apply(Compta.creer_aggregat_compte)
+df.dropna(subset=['code_aggregat_compte'], inplace=True)
+df['aggregat_compte'] = df['code_aggregat_compte'].apply(Compta.label_aggregat_compte)
 
-# calculer les dépenses selon les aggrégats
-calcul_depense_1 = data['code_aggregat'].isin([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
-calcul_depense_2 = data['code_aggregat'].isin([7.0, 8.0, 9.0])
-calcul_depense_3 = data['code_aggregat'].isin([10.0, 11.0])
+# calculer les dépenses selon les aggrégats de compte
+df = Compta.calcul_depenses_par_aggregat_compte(df)
 
-data.loc[calcul_depense_1, 'depense'] = data['SD'] - data['SC']
-data.loc[calcul_depense_2, 'depense'] = data['OBNETDEB'] - data['OBNETCRE'] - (data['OOBDEB'] - data['OOBCRE'])
-data.loc[calcul_depense_3, 'depense'] = data['OBNETDEB']
+# Aggréger code fonctions
+df['code_aggregat_fonction'] = df['FONCTION'].apply(Compta.creer_aggregat_fonction)
 
-# tronquer et étiquetter les codes fonctions
-data['FONCTION'].fillna(0, inplace=True)
-data['code_fonction'] = data['FONCTION'].apply(lambda x: str(x)[0])
-data['fonction'] = data['code_fonction'].apply(lambda x: label_fonction(int(x)))
+# Flag votes par nature et corriger l'aggrégat
+flags = flag_vote_par_nature(df)
+df = df.merge(flags, on='IDENT')
 
-# concat departement et code insee
-data['departement'] = data['NDEPT'].apply(pad_ndept)
-data['INSEE'].fillna(0, inplace=True)
-data['code_commune'] = data['departement'] + data['INSEE'].apply(lambda x: str(int(x)))
+correction = Compta.corriger_aggregat_fonction_vote_par_nature
+mask = df['vote_par_nature']
+df.loc[mask, 'code_aggregat_fonction'] = df.loc[mask, 'FONCTION'].apply(correction)
+
+# étiquetter les codes fonctions
+df['aggregat_fonction'] = df['code_aggregat_fonction'].apply(Compta.label_aggregat_fonction)
 
 # aggregation par fonction et aggrégat de compte
-grouped_data = (
-    data
-    .groupby(['siren', 'NDEPT', 'CTYPE', 'NOMEN', 'CATEG', 'LBUDG', 'IDENT', 'fonction', 'code_commune', 'aggregat'])
+grouped_df = (
+    df
+    .groupby([
+        'siren',
+        'NDEPT',
+        'INSEE',
+        'CTYPE',
+        'NOMEN',
+        'CATEG',
+        'LBUDG',
+        'IDENT',
+        'code_aggregat_fonction',
+        'aggregat_fonction',
+        'code_aggregat_compte',
+        'aggregat_compte',
+    ])
     .agg({'depense': 'sum'})
     .reset_index()
 )
 
 # import et join pop data
+grouped_df['code_commune'] = grouped_df['NDEPT'] + grouped_df['INSEE']
 pop_data = models.population_data()
-grouped_data_w_pop = grouped_data.merge(pop_data, how='left', on='code_commune')
+grouped_data_w_pop = grouped_df.merge(pop_data, how='left', on='code_commune')
 
 # écriture data
-grouped_data_w_pop.to_csv(DATADIR + EXPORT_FILE_NAME, encoding="utf-8")
-print("csv exporté in {} sous le nom {}".format(DATADIR, EXPORT_FILE_NAME))
+grouped_data_w_pop.to_csv(OUTPUT_DATADIR + EXPORT_FILE_NAME, encoding="utf-8")
+print("csv exporté in {} sous le nom {}".format(OUTPUT_DATADIR, EXPORT_FILE_NAME))
